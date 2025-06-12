@@ -1,17 +1,19 @@
 # Wholesale Customer Data Clustering Project
-## Alan Shirk - alans@pdx.edu
+### Alan Shirk - alans@pdx.edu
+
+---
 
 ### Setup
 
-1. Create a virtual environment with this command:
+1. Create a virtual environment
 ```python -m venv .venv```
 
-2. Activate the environment on Linux/Mac:
+2. Activate the environment
+
+on Linux/Mac:
 ```source .venv/bin/activate```
 
-or
-
-2. Activate the environment on Windows:
+on Windows:
 ```source .venv/Scripts/activate```
 
 3. Install required packages:
