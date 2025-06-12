@@ -6,11 +6,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from mpl_toolkits.mplot3d import Axes3D
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
-from scipy.cluster.hierarchy import linkage, dendrogram
+from scipy.cluster.hierarchy import dendrogram
 from scipy.spatial.distance import cdist
 
 # Load Wholesale Customers dataset
@@ -34,27 +33,59 @@ def kmeans_random_init(X, k, random_state=None):
 # K-means++ initialization
 def kmeans_plus_plus_init(X, k, random_state=None):
     rng = np.random.default_rng(random_state)
-    centers = [X[rng.integers(X.shape[0])]]
+    n_samples = X.shape[0]
+
+    # Randomly choose the first center
+    centers = [X[rng.integers(n_samples)]]
+
+    # Repeat until there are k centers
     while len(centers) < k:
-        dist_sq = np.min([np.sum((X - c)**2, axis=1) for c in centers], axis=0)
-        probs = dist_sq / np.sum(dist_sq)
-        cumulative_probs = np.cumsum(probs)
+        # Compute squared distance to nearest center for each point
+        cost_per_point = np.full(n_samples, np.inf)
+        for center in centers:
+            dist_sq = np.sum((X - center)**2, axis=1)
+            cost_per_point = np.minimum(cost_per_point, dist_sq)
+
+        # Compute the total cost
+        total_cost = np.sum(cost_per_point)
+
+        # Sample next center with weighted probability
+        probabilities = cost_per_point / total_cost
+        cumulative_probs = np.cumsum(probabilities)
         r = rng.random()
         next_idx = np.searchsorted(cumulative_probs, r)
         centers.append(X[next_idx])
+
     return np.array(centers)
 
 # Lloyd's K-means algorithm
-def lloyd_kmeans(X, initial_centers, max_iters=100, tol=1e-4):
+def lloyd_kmeans(X, initial_centers, max_iters=100, tol=0.0001):
+    k = len(initial_centers)
     centers = initial_centers.copy()
+    n_samples = X.shape[0]
+    labels = np.zeros(n_samples, dtype=int)
+
     for _ in range(max_iters):
-        distances = np.linalg.norm(X[:, None] - centers, axis=2)
-        labels = np.argmin(distances, axis=1)
-        new_centers = np.array([X[labels == j].mean(axis=0) if np.any(labels == j) else centers[j]
-                                for j in range(len(centers))])
-        if np.linalg.norm(new_centers - centers) <= tol:
+        # Assign each point to nearest center
+        for i in range(n_samples):
+            distances = np.sum((X[i] - centers)**2, axis=1)
+            labels[i] = np.argmin(distances)
+
+        # Compute new centers
+        new_centers = np.zeros_like(centers)
+        for j in range(k):
+            cluster_points = X[labels == j]
+            if len(cluster_points) > 0:
+                new_centers[j] = cluster_points.mean(axis=0)
+            else:
+                new_centers[j] = centers[j]  # retain old center if cluster is empty
+
+        # Check for convergence
+        center_shift = np.sum((new_centers - centers) ** 2)
+        if center_shift <= tol:
             break
         centers = new_centers
+
     return centers, labels
 
 # Compute SSE
@@ -238,6 +269,8 @@ hac_avg_results = []
 plt.figure(figsize=(10, 6))
 dendrogram(linkage_matrix_avg, truncate_mode='level', p=5)
 plt.title("Dendrogram: HAC (Average-Linkage)")
+plt.xlabel("Data Point Index / Cluster Size")
+plt.ylabel("Linkage Distance")
 plt.grid(True)
 plt.show()
 
@@ -252,6 +285,8 @@ for k in k_values:
     plt.figure(figsize=(6, 5))
     plt.scatter(X_pca[:, 0], X_pca[:, 1], c=labels, cmap='viridis', alpha=0.6)
     plt.title(f"HAC Average-Linkage (k={k})\nSilhouette: {sil:.2f}")
+    plt.xlabel("PC1")
+    plt.ylabel("PC2")
     plt.grid(True)
     plt.show()
 
@@ -279,6 +314,8 @@ hac_complete_results = []
 plt.figure(figsize=(10, 6))
 dendrogram(linkage_matrix_complete, truncate_mode='level', p=5)
 plt.title("Dendrogram: HAC (Complete-Linkage)")
+plt.xlabel("Data Point Index / Cluster Size")
+plt.ylabel("Linkage Distance")
 plt.grid(True)
 plt.show()
 
@@ -293,6 +330,8 @@ for k in k_values:
     plt.figure(figsize=(6, 5))
     plt.scatter(X_pca[:, 0], X_pca[:, 1], c=labels, cmap='viridis', alpha=0.6)
     plt.title(f"HAC Complete-Linkage (k={k})\nSilhouette: {sil:.2f}")
+    plt.xlabel("PC1")
+    plt.ylabel("PC2")
     plt.grid(True)
     plt.show()
 
